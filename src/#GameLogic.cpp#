@@ -1,0 +1,108 @@
+#include "GameLogic.h"
+#include <iostream>
+using namespace std;
+
+/* go method:
+   -while loop based on quit flag
+    -while loop to handle events
+    call view.draw
+   constructor that takes in model (board) and view (gameview)
+*/
+
+GameLogic::GameLogic() {
+    quit = false;
+    playing = false;
+}
+
+bool GameLogic::run_menu() {
+    SDL_Event e;
+    
+    MenuView menu;
+    
+    bool quit = false;
+    bool playing = true;
+    
+    while (!quit) {
+        while (SDL_PollEvent(&e) != 0) {
+            if (e.type == SDL_MOUSEBUTTONDOWN) {
+                if(e.button.button == SDL_BUTTON_LEFT &&
+                   menu.get_play_button()->in_bounds(e.button.x, e.button.y)) {
+                    quit = true;
+                } else if(e.button.button == SDL_BUTTON_LEFT &&
+                   menu.get_quit_button()->in_bounds(e.button.x, e.button.y)) {
+                    quit = true;
+                    playing = false;
+                }
+            }
+        }
+        
+        menu.draw();
+    }
+    
+    return playing;
+}
+
+void GameLogic::run_game() {
+    SDL_Event e;	
+    float difficulty;
+    cout << "Enter difficulty (positive number): ";
+    cin >> difficulty;
+    while (cin.fail() || difficulty <= 0) {
+      cin.clear();
+      cin.ignore(1000, '\n');
+      cout << "Not a positive number, try again: ";
+      cin >> difficulty;
+    }
+    Board model(10, 10, difficulty);
+    GameView view(model);
+
+    int curr_tick = 0;
+    
+    bool quit = false;
+
+    while(!quit) {
+        while(SDL_PollEvent(&e) != 0) {
+            if(e.type == SDL_QUIT) {
+                quit = true;
+            }
+
+            if (e.type == SDL_KEYDOWN) {
+                key_down_handler(model, &e.key);
+            }
+
+            if (e.type == SDL_KEYUP) {
+                key_up_handler(model, &e.key);
+            }
+        }
+
+        if (curr_tick % TICK_RATE == 0) {
+            model.tick();
+	     if(model.game_over()){
+	         quit = true;
+	     }
+        }
+
+        view.draw();
+        
+        ++curr_tick;
+    }
+}
+
+void GameLogic::key_down_handler(const Board & model, SDL_KeyboardEvent* e) {
+	if (e->keysym.sym == SDLK_ESCAPE) {
+		quit = true;
+	} else if (e->keysym.sym == SDLK_RIGHT) {
+	  model.player_move_right();
+	} else if (e->keysym.sym == SDLK_LEFT) {
+	  model.player_move_left();
+	} else if (e->keysym.sym == SDLK_UP) {
+	  model.player_jump();
+	}
+}
+
+void GameLogic::key_up_handler(const Board & model, SDL_KeyboardEvent* e) {
+	if (e->keysym.sym == SDLK_RIGHT || e->keysym.sym == SDLK_LEFT) {
+	  model.player_halt_sideways();
+	}
+}
+
